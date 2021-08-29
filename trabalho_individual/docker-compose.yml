@@ -1,0 +1,84 @@
+version: '3.8'
+services: 
+  users-service-db:
+    image: mysql:5.7.20
+    container_name: users-service-db
+    ports: 
+      - 7201:3306
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: db
+    
+    volumes:
+      - users-service-db-data:/var/lib/mysql
+
+  chat-db:
+    image: mysql:5.7.20
+    container_name: chat-db
+    ports: 
+      - 7200:3306
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: db
+    volumes:
+      - chat-db-data:/var/lib/mysql
+
+  chat-service:
+    build:
+      context: ./chat-service
+    container_name: chat-service
+    ports: 
+      - 7100:7100
+    depends_on:
+      - chat-db
+    
+  
+  users-service:
+    build:
+      context: ./users-service
+    container_name: users-service
+    ports: 
+      - 7101:7101
+    depends_on:
+      - users-service-db
+    command: sh -c "yarn db:migrate && yarn watch"
+    
+
+  api-gateway:
+    build:
+      context: ./api-gateway
+    container_name: api-gateway
+    ports:
+      - 7000:7000
+    depends_on:
+      - chat-service
+      - users-service
+    
+
+  chat-app:
+    build:
+      context: ./chat-app
+    container_name: chat-app
+    ports:
+      - 7001:7001
+    depends_on:
+      - api-gateway
+   
+
+  phpmyadmin:
+    image: phpmyadmin
+    container_name: phpmyadmin
+    ports:
+      - 7300:80
+    links:
+      - users-service-db:users-service-db
+      - chat-db:chat-db
+    volumes:
+      - ./phpmyadmin/config.user.inc.php:/etc/phpmyadmin/config.user.inc.php
+    depends_on:
+      - users-service-db
+      - chat-db
+
+volumes:
+  chat-db-data:
+  users-service-db-data:
